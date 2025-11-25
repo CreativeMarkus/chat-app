@@ -1,54 +1,90 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ImageBackground, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ImageBackground, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 
 const COLORS = ['#090C08', '#474056', '#8A95A5', '#B9C6AE'];
 
 const Start = ({ navigation }) => {
-    const [name, setName] = useState('');
-    const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+    /**
+     * STATE INITIALIZATION
+     * Managing two pieces of state for the start screen:
+     * 1. name: User's input name (string) - starts empty
+     * 2. selectedColor: Currently selected background color - defaults to first color option
+     */
+    const [name, setName] = useState(''); // User's name input, initially empty string
+    const [selectedColor, setSelectedColor] = useState(COLORS[0]); // Selected background color, defaults to first option
 
     return (
-        <ImageBackground
-            source={require('../assets/background.jpg')}
+        // KEYBOARDAVOIDINGVIEW USAGE
+        // Wraps entire screen to handle keyboard appearance:
+        // - iOS: 'padding' behavior adds padding to push content up when keyboard shows
+        // - Android: 'height' behavior resizes the view height to accommodate keyboard
+        // Prevents the TextInput from being hidden behind the keyboard
+        <KeyboardAvoidingView
             style={styles.container}
-            resizeMode="cover"
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <View style={styles.overlay}>
-                <View style={styles.contentBox}>
-                    <Text style={styles.title}>Chat App</Text>
+            <ImageBackground
+                source={require('../assets/background.jpg')}
+                style={styles.container}
+                resizeMode="cover"
+            >
+                <View style={styles.overlay}>
+                    <View style={styles.contentBox}>
+                        <Text style={styles.title}>Chat App</Text>
 
-                    <TextInput
-                        style={styles.textInput}
-                        value={name}
-                        onChangeText={setName}
-                        placeholder="Type your username here"
-                        placeholderTextColor="#757083"
-                    />
+                        <TextInput
+                            style={styles.textInput}
+                            value={name}
+                            onChangeText={setName}
+                            placeholder="Type your username here"
+                            placeholderTextColor="#757083"
+                        />
 
-                    <Text style={styles.colorText}>Choose Background Color:</Text>
-                    <View style={styles.colorContainer}>
-                        {COLORS.map((color, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={[
-                                    styles.colorOption,
-                                    { backgroundColor: color },
-                                    selectedColor === color && styles.selectedColor
-                                ]}
-                                onPress={() => setSelectedColor(color)}
-                            />
-                        ))}
+                        <Text style={styles.colorText}>Choose Background Color:</Text>
+                        <View style={styles.colorContainer}>
+                            {COLORS.map((color, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={[
+                                        styles.colorOption,
+                                        { backgroundColor: color },
+                                        selectedColor === color && styles.selectedColor
+                                    ]}
+                                    onPress={() => setSelectedColor(color)}
+                                    // ACCESSIBILITY PROPS for color selection buttons:
+                                    // - accessible: Enables accessibility features
+                                    // - accessibilityLabel: Descriptive label for screen readers
+                                    // - accessibilityHint: Explains what the button does
+                                    // - accessibilityRole: Identifies the element as a button
+                                    // - accessibilityState: Indicates if this color is currently selected
+                                    accessible={true}
+                                    accessibilityLabel={`Select background color ${index + 1}`}
+                                    accessibilityHint="Changes the chat background color"
+                                    accessibilityRole="button"
+                                    accessibilityState={{ selected: selectedColor === color }}
+                                />
+                            ))}
+                        </View>
+
+                        <Pressable
+                            style={styles.chatButton}
+                            onPress={() => navigation.navigate('Chat', { name: name, color: selectedColor })}
+                            // ACCESSIBILITY PROPS for navigation button:
+                            // - accessible: Enables accessibility support
+                            // - accessibilityLabel: Clear description of button purpose
+                            // - accessibilityHint: Explains the action that will be performed
+                            // - accessibilityRole: Identifies this as an interactive button element
+                            accessible={true}
+                            accessibilityLabel="Start Chatting"
+                            accessibilityHint="Navigate to the chat screen"
+                            accessibilityRole="button"
+                        >
+                            <Text style={styles.chatButtonText}>Start Chatting</Text>
+                        </Pressable>
                     </View>
-
-                    <Pressable
-                        style={styles.chatButton}
-                        onPress={() => navigation.navigate('Chat', { name: name, color: selectedColor })}
-                    >
-                        <Text style={styles.chatButtonText}>Start Chatting</Text>
-                    </Pressable>
                 </View>
-            </View>
-        </ImageBackground>
+            </ImageBackground>
+        </KeyboardAvoidingView >
     );
 };
 
