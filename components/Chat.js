@@ -35,7 +35,7 @@ const Chat = ({ route, navigation }) => {
         // Messages are ordered with most recent first (GiftedChat requirement)
         setMessages([
             {
-                _id: Math.round(Math.random() * 1000000), // Unique identifier for the message
+                _id: 1, // Unique identifier for the message
                 text: 'Hello developer.',
                 createdAt: new Date(),
                 user: {
@@ -45,7 +45,7 @@ const Chat = ({ route, navigation }) => {
                 },
             },
             {
-                _id: Math.round(Math.random() * 1000000),
+                _id: 2,
                 text: "You've entered the chat.",
                 createdAt: new Date(),
                 system: true, // System message flag for special styling
@@ -59,7 +59,19 @@ const Chat = ({ route, navigation }) => {
      * @param {Array} newMessages - Array of new message objects to add
      */
     const handleSend = (newMessages = []) => {
-        setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages));
+        setMessages(previousMessages => {
+            // Ensure each new message has a unique _id and proper structure
+            const processedMessages = newMessages.map(message => ({
+                _id: message._id || Math.round(Math.random() * 1000000),
+                text: message.text,
+                createdAt: message.createdAt || new Date(),
+                user: {
+                    _id: message.user._id,
+                    name: message.user.name || currentUserName,
+                }
+            }));
+            return GiftedChat.append(previousMessages, processedMessages);
+        });
     };
 
     // Custom bubble rendering function
@@ -100,6 +112,9 @@ const Chat = ({ route, navigation }) => {
                     user={{ _id: currentUserId, name: currentUserName }}
                     renderBubble={renderBubble}
                     placeholder="Type a message..."
+                    listViewProps={{
+                        keyExtractor: (item) => item._id.toString()
+                    }}
                 />
             </KeyboardAvoidingView>
         </SafeAreaView>
