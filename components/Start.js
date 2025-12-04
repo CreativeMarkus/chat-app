@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ImageBackground, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { getAuth, signInAnonymously } from "firebase/auth";
 
 const COLORS = ['#090C08', '#474056', '#8A95A5', '#B9C6AE'];
 
 const Start = ({ navigation }) => {
+    const auth = getAuth();
+
     /**
      * STATE INITIALIZATION
      * Managing two pieces of state for the start screen:
@@ -12,6 +15,18 @@ const Start = ({ navigation }) => {
      */
     const [name, setName] = useState(''); // User's name input, initially empty string
     const [selectedColor, setSelectedColor] = useState(COLORS[0]); // Selected background color, defaults to first option
+
+    const signInUser = () => {
+        signInAnonymously(auth)
+            .then(result => {
+                navigation.navigate("Chat", {
+                    userID: result.user.uid,
+                    name: name,
+                    bgColor: selectedColor
+                });
+            })
+            .catch(() => alert("Error logging in"));
+    };
 
     return (
         // KEYBOARDAVOIDINGVIEW USAGE
@@ -68,7 +83,7 @@ const Start = ({ navigation }) => {
 
                         <Pressable
                             style={styles.chatButton}
-                            onPress={() => navigation.navigate('Chat', { name: name, color: selectedColor })}
+                            onPress={signInUser}
                             // ACCESSIBILITY PROPS for navigation button:
                             // - accessible: Enables accessibility support
                             // - accessibilityLabel: Clear description of button purpose
