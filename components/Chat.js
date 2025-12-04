@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, KeyboardAvoidingView, Platform, StyleSheet, FlatList, Text, TextInput, TouchableOpacity, SafeAreaView } from 'react-native';
+import { KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
 import { GiftedChat, Bubble } from 'react-native-gifted-chat';
 import { useHeaderHeight } from '@react-navigation/elements';
 
@@ -9,6 +9,10 @@ const Chat = ({ route, navigation }) => {
 
     // Get the real header height
     const headerHeight = useHeaderHeight();
+
+    // Current user ID and name for GiftedChat
+    const currentUserId = 1;
+    const currentUserName = name;
 
     /**
      * STATE INITIALIZATION
@@ -50,15 +54,13 @@ const Chat = ({ route, navigation }) => {
     }, []);
 
     /**
-     * ONSEND FUNCTION
+     * HANDLE SEND FUNCTION
      * Handles sending new messages by appending them to the existing message array
      * @param {Array} newMessages - Array of new message objects to add
      */
-    const onSend = (newMessages = []) => {
-        setMessages(previousMessages => [...newMessages, ...previousMessages]);
+    const handleSend = (newMessages = []) => {
+        setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages));
     };
-
-    const [inputText, setInputText] = useState('');
 
     // Custom bubble rendering function
     const renderBubble = (props) => {
@@ -67,7 +69,7 @@ const Chat = ({ route, navigation }) => {
                 {...props}
                 wrapperStyle={{
                     right: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.3)', // Right bubble: black background
+                        backgroundColor: '#000', // Right bubble: black background
                     },
                     left: {
                         backgroundColor: '#FFF', // Left bubble: white background
@@ -85,160 +87,23 @@ const Chat = ({ route, navigation }) => {
         );
     };
 
-    const handleSend = () => {
-        if (inputText.trim()) {
-            const newMessage = {
-                _id: Math.round(Math.random() * 1000000),
-                text: inputText,
-                createdAt: new Date(),
-                user: { _id: 1 }
-            };
-            onSend([newMessage]);
-            setInputText('');
-        }
-    };
-
-    const renderMessage = ({ item }) => {
-        if (!item || !item._id) return null;
-
-        const isCurrentUser = item.user && item.user._id === 1;
-        const isSystem = item.system;
-
-        if (isSystem) {
-            return (
-                <View key={item._id} style={styles.systemMessage}>
-                    <Text style={styles.systemText}>{item.text}</Text>
-                </View>
-            );
-        }
-
-        return (
-            <View key={item._id} style={[styles.messageContainer, isCurrentUser ? styles.rightMessage : styles.leftMessage]}>
-                <View style={[styles.bubble, isCurrentUser ? styles.rightBubble : styles.leftBubble]}>
-                    <Text style={[styles.messageText, isCurrentUser ? styles.rightText : styles.leftText]}>
-                        {item.text}
-                    </Text>
-                </View>
-            </View>
-        );
-    };
-
     return (
         <SafeAreaView style={{ flex: 1 }}>
             <KeyboardAvoidingView
-                style={[styles.container, styles.lightGreyBackground]}
+                style={{ flex: 1 }}
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight - 20 : 110}
             >
-                <FlatList
-                    data={messages}
-                    renderItem={renderMessage}
-                    keyExtractor={(item, index) =>
-                        item && item._id ? item._id.toString() : index.toString()
-                    }
-                    inverted
-                    style={styles.messagesList}
+                <GiftedChat
+                    messages={messages}
+                    onSend={newMessages => handleSend(newMessages)}
+                    user={{ _id: currentUserId, name: currentUserName }}
+                    renderBubble={renderBubble}
+                    placeholder="Type a message..."
                 />
-
-                <View style={styles.inputContainer}>
-                    <TextInput
-                        style={styles.textInput}
-                        value={inputText}
-                        onChangeText={setInputText}
-                        placeholder="Type a message..."
-                        multiline
-                    />
-                    <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-                        <Text style={styles.sendButtonText}>Send</Text>
-                    </TouchableOpacity>
-                </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    flex: {
-        flex: 1,
-    },
-    lightGreyBackground: {
-        backgroundColor: '#F5F5F5',
-    },
-    messagesList: {
-        flex: 1,
-        paddingHorizontal: 10,
-    },
-    messageContainer: {
-        marginVertical: 5,
-    },
-    rightMessage: {
-        alignItems: 'flex-end',
-    },
-    leftMessage: {
-        alignItems: 'flex-start',
-    },
-    bubble: {
-        maxWidth: '80%',
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        borderRadius: 20,
-    },
-    rightBubble: {
-        backgroundColor: '#000',
-    },
-    leftBubble: {
-        backgroundColor: '#FFF',
-        borderWidth: 1,
-        borderColor: '#E5E5E5',
-    },
-    messageText: {
-        fontSize: 16,
-    },
-    rightText: {
-        color: '#FFF',
-    },
-    leftText: {
-        color: '#000',
-    },
-    systemMessage: {
-        alignItems: 'center',
-        marginVertical: 10,
-    },
-    systemText: {
-        color: '#999',
-        fontSize: 14,
-        fontStyle: 'italic',
-    },
-    inputContainer: {
-        flexDirection: 'row',
-        padding: 10,
-        backgroundColor: '#FFF',
-        alignItems: 'flex-end',
-    },
-    textInput: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: '#E5E5E5',
-        borderRadius: 20,
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        marginRight: 10,
-        maxHeight: 100,
-        fontSize: 16,
-    },
-    sendButton: {
-        backgroundColor: '#007AFF',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 20,
-    },
-    sendButtonText: {
-        color: '#FFF',
-        fontWeight: 'bold',
-    },
-});
 
 export default Chat;
