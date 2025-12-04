@@ -8,24 +8,47 @@ const Chat = ({ route, navigation, ...props }) => {
     const { userID, name, bgColor } = route.params;
     const [messages, setMessages] = useState([]);
 
+    if (!db) {
+        console.error("Database not available");
+        return null;
+    }
+
     useEffect(() => {
         navigation.setOptions({ title: name });
 
-        const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
+        // Set up a simple welcome message first
+        setMessages([
+            {
+                _id: 1,
+                text: `Welcome to the chat, ${name}!`,
+                createdAt: new Date(),
+                system: true,
+            },
+        ]);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const messages = snapshot.docs.map(doc => {
-                return {
-                    _id: doc.id,
-                    ...doc.data(),
-                    createdAt: doc.data().createdAt.toDate(),
-                };
+        // Then set up Firebase listener
+        if (db) {
+            const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
+
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const messages = snapshot.docs.map(doc => {
+                    const firebaseData = doc.data();
+                    return {
+                        _id: doc.id,
+                        text: firebaseData.text,
+                        createdAt: firebaseData.createdAt ? firebaseData.createdAt.toDate() : new Date(),
+                        user: firebaseData.user
+                    };
+                });
+
+                setMessages(messages);
+            }, (error) => {
+                console.error("Error fetching messages: ", error);
+                // Keep local messages if Firebase fails
             });
 
-            setMessages(messages);
-        });
-
-        return () => unsubscribe();
+            return () => unsubscribe();
+        }
     }, []);
 
     const onSend = (newMessages) => {
@@ -36,6 +59,8 @@ const Chat = ({ route, navigation, ...props }) => {
             text: message.text,
             createdAt: new Date(),
             user: message.user
+        }).catch((error) => {
+            console.error("Error adding message: ", error);
         });
     };
 
