@@ -1,9 +1,7 @@
 import { StyleSheet, View, Text, TouchableOpacity, Alert } from "react-native"
-import { getAuth, signInAnonymously } from "firebase/auth";
+import { signInAnonymously } from "firebase/auth";
 
-const Welcome = ({ navigation, app }) => {
-    const auth = getAuth(app);
-
+const Welcome = ({ navigation, auth }) => {
     const signInUser = () => {
         signInAnonymously(auth)
             .then(result => {

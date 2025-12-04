@@ -1,98 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 import { GiftedChat, Bubble } from 'react-native-gifted-chat';
 import { useHeaderHeight } from '@react-navigation/elements';
+import { collection, query, onSnapshot, orderBy, addDoc } from 'firebase/firestore';
 
-const Chat = ({ route, navigation }) => {
-    // Extract navigation parameters passed from Start screen
-    const { name, color } = route.params;
-
-    // Get the real header height
+const Chat = ({ db, route, navigation }) => {
+    const { userID, name, color } = route.params;
+    const [messages, setMessages] = useState([]);
     const headerHeight = useHeaderHeight();
 
-    // Current user ID and name for GiftedChat
-    const currentUserId = 1;
-    const currentUserName = name;
-
-    /**
-     * STATE INITIALIZATION
-     * Initialize messages state as an empty array to store chat messages
-     * Each message object will contain _id, text, createdAt, user, and optional system properties
-     */
-    const [messages, setMessages] = useState([]);
-
-    /**
-     * USEEFFECT LOGIC
-     * Runs once when component mounts to:
-     * 1. Set the navigation header title to the user's name
-     * 2. Preload initial welcome messages for better user experience
-     */
     useEffect(() => {
-        // Set navigation title to user's name from route params
         navigation.setOptions({ title: name });
 
-        // Preload initial messages - system message and welcome message
-        // Messages are ordered with most recent first (GiftedChat requirement)
-        setMessages([
-            {
-                _id: 1, // Unique identifier for the message
-                text: 'Hello developer.',
-                createdAt: new Date(),
-                user: {
-                    _id: 2, // Different from current user (_id: 1)
-                    name: 'React Native',
-                    avatar: 'https://placeimg.com/140/140/any',
-                },
-            },
-            {
-                _id: 2,
-                text: "You've entered the chat.",
-                createdAt: new Date(),
-                system: true, // System message flag for special styling
-            },
-        ]);
+        // Create Firestore query for messages, ordered by createdAt in descending order
+        const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
+
+        // Set up real-time listener for messages
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const newMessages = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    _id: doc.id,
+                    text: data.text,
+                    createdAt: new Date(data.createdAt.toMillis()),
+                    user: {
+                        _id: data.user._id,
+                        name: data.user.name,
+                        avatar: data.user.avatar || null,
+                    },
+                    system: data.system || false,
+                };
+            });
+            setMessages(newMessages);
+        });
+
+        // Return cleanup function to unsubscribe from listener
+        return () => unsubscribe();
     }, []);
 
-    /**
-     * HANDLE SEND FUNCTION
-     * Handles sending new messages by appending them to the existing message array
-     * @param {Array} newMessages - Array of new message objects to add
-     */
-    const handleSend = (newMessages = []) => {
-        setMessages(previousMessages => {
-            // Ensure each new message has a unique _id and proper structure
-            const processedMessages = newMessages.map(message => ({
-                _id: message._id || Math.round(Math.random() * 1000000),
-                text: message.text,
-                createdAt: message.createdAt || new Date(),
-                user: {
-                    _id: message.user._id,
-                    name: message.user.name || currentUserName,
-                }
-            }));
-            return GiftedChat.append(previousMessages, processedMessages);
-        });
+    const onSend = (newMessages = []) => {
+        addDoc(collection(db, "messages"), newMessages[0]);
     };
 
-    // Custom bubble rendering function
     const renderBubble = (props) => {
         return (
             <Bubble
                 {...props}
                 wrapperStyle={{
                     right: {
-                        backgroundColor: '#000', // Right bubble: black background
+                        backgroundColor: '#000',
                     },
                     left: {
-                        backgroundColor: '#FFF', // Left bubble: white background
+                        backgroundColor: '#FFF',
                     },
                 }}
                 textStyle={{
                     right: {
-                        color: '#FFF', // Right bubble: white text
+                        color: '#FFF',
                     },
                     left: {
-                        color: '#000', // Left bubble: black text
+                        color: '#000',
                     },
                 }}
             />
@@ -100,24 +67,21 @@ const Chat = ({ route, navigation }) => {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1 }}>
-            <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight - 20 : 110}
-            >
-                <GiftedChat
-                    messages={messages}
-                    onSend={newMessages => handleSend(newMessages)}
-                    user={{ _id: currentUserId, name: currentUserName }}
-                    renderBubble={renderBubble}
-                    placeholder="Type a message..."
-                    listViewProps={{
-                        keyExtractor: (item) => item._id.toString()
-                    }}
-                />
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+        <KeyboardAvoidingView
+            style={{ flex: 1, backgroundColor: color }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={headerHeight}
+        >
+            <GiftedChat
+                messages={messages}
+                onSend={messages => onSend(messages)}
+                user={{
+                    _id: userID,
+                    name: name,
+                }}
+                renderBubble={renderBubble}
+            />
+        </KeyboardAvoidingView>
     );
 };
 

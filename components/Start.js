@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ImageBackground, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const COLORS = ['#090C08', '#474056', '#8A95A5', '#B9C6AE'];
 
 const Start = ({ navigation }) => {
+    // Initialize Firebase Authentication
+    const auth = getAuth();
+
     /**
      * STATE INITIALIZATION
      * Managing two pieces of state for the start screen:
@@ -12,6 +16,28 @@ const Start = ({ navigation }) => {
      */
     const [name, setName] = useState(''); // User's name input, initially empty string
     const [selectedColor, setSelectedColor] = useState(COLORS[0]); // Selected background color, defaults to first option
+
+    /**
+     * SIGN IN USER FUNCTION
+     * Handles anonymous authentication and navigation to Chat screen
+     * @param {string} name - User's display name
+     * @param {string} color - Selected background color
+     */
+    const signInUser = (name, color) => {
+        signInAnonymously(auth)
+            .then((result) => {
+                if (result.user) {
+                    navigation.navigate('Chat', {
+                        userID: result.user.uid,
+                        name: name,
+                        color: color
+                    });
+                }
+            })
+            .catch((error) => {
+                console.error('Anonymous sign-in failed:', error);
+            });
+    };
 
     return (
         // KEYBOARDAVOIDINGVIEW USAGE
@@ -68,7 +94,7 @@ const Start = ({ navigation }) => {
 
                         <Pressable
                             style={styles.chatButton}
-                            onPress={() => navigation.navigate('Chat', { name: name, color: selectedColor })}
+                            onPress={() => signInUser(name, selectedColor)}
                             // ACCESSIBILITY PROPS for navigation button:
                             // - accessible: Enables accessibility support
                             // - accessibilityLabel: Clear description of button purpose

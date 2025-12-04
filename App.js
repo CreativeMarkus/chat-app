@@ -2,52 +2,52 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-// Create the navigator
-const Stack = createNativeStackNavigator();
+// import Firebase
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
 
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
 // import the screens
-import Welcome from './components/Welcome';
-import ShoppingLists from './components/ShoppingLists';
 import Start from './components/Start';
 import Chat from './components/Chat';
 
+// Create the navigator
+const Stack = createNativeStackNavigator();
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDW6kGacu65_FGeV_nqOYeDZLnSQhGS-3o",
+  authDomain: "mychat-87594.firebaseapp.com",
+  projectId: "mychat-87594",
+  storageBucket: "mychat-87594.firebasestorage.app",
+  messagingSenderId: "1094190653766",
+  appId: "1:1094190653766:web:d68d00c66776c14e924547"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize Cloud Firestore and get a reference to the service
+const db = getFirestore(app);
+
 const App = () => {
-  const firebaseConfig = {
-    apiKey: "AIzaSyBMUIXYuljva4lxVdIacsE6WEXo8MMAqRk",
-    authDomain: "shopping-list-demo-b8219.firebaseapp.com",
-    projectId: "shopping-list-demo-b8219",
-    storageBucket: "shopping-list-demo-b8219.firebasestorage.app",
-    messagingSenderId: "817991493456",
-    appId: "1:817991493456:web:95bac59d5e696d12072e55"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-
-  // Initialize Cloud Firestore and get a reference to the service
-  const db = getFirestore(app);
-
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Welcome"
+        initialRouteName="Start"
       >
-        <Stack.Screen name="Welcome">
-          {props => <Welcome app={app} {...props} />}
-        </Stack.Screen>
         <Stack.Screen
-          name="ShoppingLists"
-        >
-          {props => <ShoppingLists db={db} {...props} />}
-        </Stack.Screen>
-        <Stack.Screen name="Start" component={Start} />
+          name="Start"
+          component={Start}
+        />
         <Stack.Screen
           name="Chat"
-          component={Chat}
-          initialParams={{ db }}
-        />
+        >
+          {props => <Chat
+            db={db}
+            route={props.route}
+            navigation={props.navigation}
+          />}
+        </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>
   );
