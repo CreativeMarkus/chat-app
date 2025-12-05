@@ -16,16 +16,20 @@ const Start = ({ navigation }) => {
     const [name, setName] = useState(''); // User's name input, initially empty string
     const [selectedColor, setSelectedColor] = useState(COLORS[0]); // Selected background color, defaults to first option
 
-    const signInUser = () => {
-        signInAnonymously(auth)
-            .then(result => {
-                navigation.navigate("Chat", {
-                    userID: result.user.uid,
-                    name: name,
-                    bgColor: selectedColor
-                });
-            })
-            .catch(() => alert("Error logging in"));
+    const goToChat = () => {
+        if (name.trim()) {
+            signInAnonymously(auth)
+                .then((result) => {
+                    navigation.navigate("Chat", {
+                        userID: result.user.uid,
+                        name: name,
+                        color: selectedColor
+                    });
+                })
+                .catch(() => alert("Error logging in"));
+        } else {
+            alert("Please enter your name");
+        }
     };
 
     return (
@@ -83,7 +87,7 @@ const Start = ({ navigation }) => {
 
                         <Pressable
                             style={styles.chatButton}
-                            onPress={signInUser}
+                            onPress={goToChat}
                             // ACCESSIBILITY PROPS for navigation button:
                             // - accessible: Enables accessibility support
                             // - accessibilityLabel: Clear description of button purpose

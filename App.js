@@ -17,12 +17,12 @@ const Stack = createNativeStackNavigator();
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDt5r94g0XLWdqKrorcaBTsiYPtSBpoTzg",
-  authDomain: "chatapp-efea0.firebaseapp.com",
-  projectId: "chatapp-efea0",
-  storageBucket: "chatapp-efea0.firebasestorage.app",
-  messagingSenderId: "893229329340",
-  appId: "1:893229329340:web:084e5e8925ecf7ab22d9b9"
+  apiKey: "AIzaSyDSx7cxIe4Ab3gWexOyRtz_b8ROwDDaHgg",
+  authDomain: "chatapp-34f0e.firebaseapp.com",
+  projectId: "chatapp-34f0e",
+  storageBucket: "chatapp-34f0e.firebasestorage.app",
+  messagingSenderId: "291405061906",
+  appId: "1:291405061906:web:b22e8553d5d8cf96b21dcb"
 };
 
 // Initialize Firebase
@@ -40,7 +40,7 @@ const App = () => {
           component={Start}
         />
         <Stack.Screen name="Chat">
-          {props => <Chat db={db} {...props} />}
+          {(props) => <Chat db={db} {...props} />}
         </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>
