@@ -1,3 +1,4 @@
+import React from "react";
 import { StyleSheet, View, Text, TouchableOpacity, Alert } from "react-native"
 import { signInAnonymously } from "firebase/auth";
 
