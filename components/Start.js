@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ImageBackground, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { signInAnonymously } from "firebase/auth";
+import { auth } from '../firebase';
 
 const COLORS = ['#090C08', '#474056', '#8A95A5', '#B9C6AE'];
 
-const Start = ({ navigation, auth }) => {
+const Start = ({ navigation }) => {
 
     /**
      * STATE INITIALIZATION
