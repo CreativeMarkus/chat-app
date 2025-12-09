@@ -1,43 +1,56 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ImageBackground, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
-import { signInAnonymously } from "firebase/auth";
-import { auth } from '../firebase';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ImageBackground, Pressable, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { auth } from '../firebase_web';
 
 const COLORS = ['#090C08', '#474056', '#8A95A5', '#B9C6AE'];
 
 const Start = ({ navigation }) => {
+    const [name, setName] = useState('');
+    const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
-    /**
-     * STATE INITIALIZATION
-     * Managing two pieces of state for the start screen:
-     * 1. name: User's input name (string) - starts empty
-     * 2. selectedColor: Currently selected background color - defaults to first color option
-     */
-    const [name, setName] = useState(''); // User's name input, initially empty string
-    const [selectedColor, setSelectedColor] = useState(COLORS[0]); // Selected background color, defaults to first option
+    const goToChat = async () => {
+        if (!name.trim()) {
+            Alert.alert("Missing Information", "Please enter your name");
+            return;
+        }
 
-    const goToChat = () => {
-        if (name.trim()) {
-            signInAnonymously(auth)
-                .then((result) => {
-                    navigation.navigate("Chat", {
-                        userID: result.user.uid,
-                        name: name,
-                        color: selectedColor
-                    });
-                })
-                .catch(() => alert("Error logging in"));
-        } else {
-            alert("Please enter your name");
+        try {
+            console.log('Attempting Firebase authentication...');
+            const result = await auth.signInAnonymously();
+            console.log('Firebase auth successful:', result.user.uid);
+
+            navigation.navigate("Chat", {
+                userID: result.user.uid,
+                name: name.trim(),
+                color: selectedColor,
+                firebaseEnabled: true
+            });
+        } catch (error) {
+            console.error('Firebase auth error:', error);
+
+            // Fallback to local mode if Firebase fails
+            Alert.alert(
+                "Connection Issue",
+                "Unable to connect to Firebase. Continue in offline mode?",
+                [
+                    {
+                        text: "Yes, Continue Offline",
+                        onPress: () => {
+                            navigation.navigate("Chat", {
+                                userID: 'local-' + Date.now(),
+                                name: name.trim(),
+                                color: selectedColor,
+                                firebaseEnabled: false
+                            });
+                        }
+                    },
+                    { text: "Cancel", style: "cancel" }
+                ]
+            );
         }
     };
 
     return (
-        // KEYBOARDAVOIDINGVIEW USAGE
-        // Wraps entire screen to handle keyboard appearance:
-        // - iOS: 'padding' behavior adds padding to push content up when keyboard shows
-        // - Android: 'height' behavior resizes the view height to accommodate keyboard
-        // Prevents the TextInput from being hidden behind the keyboard
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -70,12 +83,6 @@ const Start = ({ navigation }) => {
                                         selectedColor === color && styles.selectedColor
                                     ]}
                                     onPress={() => setSelectedColor(color)}
-                                    // ACCESSIBILITY PROPS for color selection buttons:
-                                    // - accessible: Enables accessibility features
-                                    // - accessibilityLabel: Descriptive label for screen readers
-                                    // - accessibilityHint: Explains what the button does
-                                    // - accessibilityRole: Identifies the element as a button
-                                    // - accessibilityState: Indicates if this color is currently selected
                                     accessible={true}
                                     accessibilityLabel={`Select background color ${index + 1}`}
                                     accessibilityHint="Changes the chat background color"
@@ -88,14 +95,9 @@ const Start = ({ navigation }) => {
                         <Pressable
                             style={styles.chatButton}
                             onPress={goToChat}
-                            // ACCESSIBILITY PROPS for navigation button:
-                            // - accessible: Enables accessibility support
-                            // - accessibilityLabel: Clear description of button purpose
-                            // - accessibilityHint: Explains the action that will be performed
-                            // - accessibilityRole: Identifies this as an interactive button element
                             accessible={true}
                             accessibilityLabel="Start Chatting"
-                            accessibilityHint="Navigate to the chat screen"
+                            accessibilityHint="Navigate to the chat screen with Firebase"
                             accessibilityRole="button"
                         >
                             <Text style={styles.chatButtonText}>Start Chatting</Text>
@@ -103,7 +105,7 @@ const Start = ({ navigation }) => {
                     </View>
                 </View>
             </ImageBackground>
-        </KeyboardAvoidingView >
+        </KeyboardAvoidingView>
     );
 };
 
