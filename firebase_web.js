@@ -1,6 +1,7 @@
 // Firebase configuration that works with Expo Go
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
     apiKey: "AIzaSyDSx7cxIe4Ab3gWexOyRtz_b8ROwDDaHgg",
@@ -22,6 +23,9 @@ if (getApps().length === 0) {
 // Initialize Firestore
 const db = getFirestore(app);
 
+// Initialize Firebase Storage
+const storage = getStorage(app);
+
 // For Expo Go compatibility, we'll handle auth differently
 // We'll create a mock auth that works locally
 const createMockAuth = () => ({
@@ -40,4 +44,4 @@ const auth = createMockAuth();
 
 console.log('Firebase initialized for Expo Go (mock auth mode)');
 
-export { app, auth, db };
+export { app, auth, db, storage };

@@ -1,33 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    ScrollView,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Alert
-} from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, SafeAreaView, Keyboard, Dimensions, Image } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
-import { db } from '../firebase_web';
+import { db, storage } from '../firebase_web';
+import CustomActions from './CustomActions';
 
-const Chat = ({ route, navigation }) => {
+const Chat = ({ route, navigation, isConnected }) => {
     const { userID, name, color, firebaseEnabled = false } = route.params;
     const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [isOnline, setIsOnline] = useState(firebaseEnabled);
+    const [messageText, setMessageText] = useState('');
+    const [isOnline, setIsOnline] = useState(false);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     useEffect(() => {
         navigation.setOptions({ title: name });
+        loadCachedMessages();
 
-        if (firebaseEnabled && db) {
+        if (firebaseEnabled && db && isConnected) {
             setupFirebaseListener();
-        } else {
-            setupLocalMode();
         }
-    }, [name, firebaseEnabled]);
+
+        // Keyboard listeners
+        const keyboardDidShowListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+            (event) => setKeyboardHeight(event.endCoordinates.height)
+        );
+        const keyboardDidHideListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+            () => setKeyboardHeight(0)
+        );
+
+        return () => {
+            keyboardDidShowListener?.remove();
+            keyboardDidHideListener?.remove();
+        };
+    }, [name, isConnected]);
 
     const setupFirebaseListener = () => {
         try {
@@ -35,168 +43,323 @@ const Chat = ({ route, navigation }) => {
             const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
 
             const unsubscribe = onSnapshot(q,
-                (snapshot) => {
+                async (snapshot) => {
                     console.log('Received', snapshot.docs.length, 'messages from Firestore');
                     const firebaseMessages = snapshot.docs.map(doc => {
                         const data = doc.data();
-                        return {
-                            id: doc.id,
-                            text: data.text,
+                        const message = {
+                            _id: doc.id,
+                            text: String(data.text || ''),
                             createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
-                            user: data.user,
-                            userID: data.userID
+                            user: {
+                                _id: String(data.userID || 'unknown'),
+                                name: String(data.user || 'Anonymous'),
+                            },
                         };
+
+                        // Add image field if present
+                        if (data.image) {
+                            message.image = data.image;
+                        }
+
+                        // Add location field if present
+                        if (data.location) {
+                            message.location = {
+                                latitude: data.location.latitude,
+                                longitude: data.location.longitude,
+                            };
+                        }
+
+                        return message;
                     });
-                    setMessages(firebaseMessages.reverse());
+
+                    setMessages(firebaseMessages);
                     setIsOnline(true);
+
+                    // Cache messages to AsyncStorage for offline use
+                    try {
+                        await AsyncStorage.setItem('messages', JSON.stringify(firebaseMessages));
+                        console.log('Messages cached to AsyncStorage');
+                    } catch (storageError) {
+                        console.error('Error caching messages:', storageError);
+                    }
                 },
                 (error) => {
                     console.error('Firebase listener error:', error);
                     setIsOnline(false);
-                    setupLocalMode();
                 }
             );
 
-            // Cleanup function
-            return () => {
-                if (unsubscribe) {
-                    console.log('Cleaning up Firebase listener');
-                    unsubscribe();
-                }
-            };
+            return unsubscribe;
         } catch (error) {
             console.error('Error setting up Firebase listener:', error);
             setIsOnline(false);
-            setupLocalMode();
+            return null;
         }
     };
 
-    const setupLocalMode = () => {
-        setMessages([
-            {
-                id: '1',
-                text: `Hello ${name}! ${isOnline ? 'Firebase is temporarily offline.' : 'Welcome to local chat mode.'} Messages are saved locally.`,
-                createdAt: new Date(),
-                user: 'System',
-                userID: 'system'
+    const loadCachedMessages = async () => {
+        try {
+            console.log('Loading cached messages from AsyncStorage...');
+            const cachedData = await AsyncStorage.getItem('messages');
+
+            if (cachedData) {
+                const parsedMessages = JSON.parse(cachedData);
+                const messagesWithDates = parsedMessages.map(msg => {
+                    const message = {
+                        ...msg,
+                        text: String(msg.text || ''),
+                        createdAt: new Date(msg.createdAt),
+                        user: {
+                            _id: String(msg.user?._id || 'unknown'),
+                            name: String(msg.user?.name || 'Anonymous'),
+                        },
+                    };
+
+                    // Preserve image data if present
+                    if (msg.image) {
+                        message.image = msg.image;
+                    }
+
+                    // Preserve location data if present
+                    if (msg.location) {
+                        message.location = {
+                            latitude: msg.location.latitude,
+                            longitude: msg.location.longitude,
+                        };
+                    }
+
+                    return message;
+                });
+                setMessages(messagesWithDates);
+                console.log('Loaded', messagesWithDates.length, 'cached messages');
+            } else {
+                // Set welcome message if no cached messages
+                const welcomeMessage = {
+                    _id: 'welcome',
+                    text: String(`Hello ${name || 'User'}! Welcome to the chat!`),
+                    createdAt: new Date(),
+                    user: {
+                        _id: 'system',
+                        name: 'System',
+                    },
+                };
+                setMessages([welcomeMessage]);
             }
-        ]);
+        } catch (error) {
+            console.error('Error loading cached messages:', error);
+        }
     };
 
     const sendMessage = async () => {
-        if (!newMessage.trim()) return;
+        if (!messageText.trim()) return;
 
-        const messageData = {
-            text: newMessage.trim(),
+        const newMessage = {
+            _id: Math.random().toString(),
+            text: String(messageText),
             createdAt: new Date(),
-            user: name,
-            userID: userID
+            user: {
+                _id: String(userID),
+                name: String(name || 'Anonymous'),
+            },
         };
 
-        if (isOnline && db) {
+        await handleSend(newMessage);
+        setMessageText('');
+    };
+
+    const handleSend = async (message) => {
+        // Add message to local state immediately
+        setMessages(previousMessages => [message, ...previousMessages]);
+
+        if (firebaseEnabled && db && isConnected && isOnline) {
             try {
-                await addDoc(collection(db, "messages"), {
-                    ...messageData,
-                    createdAt: messageData.createdAt // Firestore will convert this
-                });
-                console.log('Message sent to Firestore');
-                setNewMessage('');
+                const firebaseMessage = {
+                    text: message.text || '',
+                    createdAt: new Date(),
+                    user: message.user.name || 'Anonymous',
+                    userID: message.user._id,
+                };
+
+                // Add image field if present
+                if (message.image) {
+                    firebaseMessage.image = message.image;
+                }
+
+                // Add location field if present
+                if (message.location) {
+                    firebaseMessage.location = {
+                        latitude: message.location.latitude,
+                        longitude: message.location.longitude,
+                    };
+                }
+
+                await addDoc(collection(db, "messages"), firebaseMessage);
+                console.log('Message sent to Firebase:', message.image ? 'image' : message.location ? 'location' : 'text');
             } catch (error) {
-                console.error('Error sending message to Firestore:', error);
-                // Fallback to local mode
-                const localMessage = { ...messageData, id: Date.now().toString() };
-                setMessages(prev => [...prev, localMessage]);
-                setNewMessage('');
-                setIsOnline(false);
-                Alert.alert('Connection Issue', 'Message saved locally. Will sync when connection is restored.');
+                console.error('Error sending message to Firebase:', error);
+                Alert.alert('Error', 'Failed to send message to Firebase');
             }
         } else {
-            // Local mode
-            const localMessage = { ...messageData, id: Date.now().toString() };
-            setMessages(prev => [...prev, localMessage]);
-            setNewMessage('');
+            // Cache message locally for offline use
+            try {
+                const updatedMessages = [message, ...messages];
+                await AsyncStorage.setItem('messages', JSON.stringify(updatedMessages));
+                console.log('Message cached locally');
+            } catch (error) {
+                console.error('Error caching message:', error);
+            }
         }
     };
 
-    const renderMessage = (message) => {
-        const isMyMessage = message.userID === userID;
-
-        // Handle both string and object formats for user
-        const userName = typeof message.user === 'object' ?
-            (message.user.name || 'Unknown User') :
-            (message.user || 'Unknown User');
-
+    const renderMessage = ({ item }) => {
+        const isMyMessage = item.user._id === userID;
         return (
-            <View
-                key={message.id}
-                style={[
-                    styles.messageContainer,
-                    isMyMessage ? styles.myMessage : styles.otherMessage
-                ]}
-            >
-                {!isMyMessage && (
-                    <Text style={styles.senderName}>{userName}</Text>
-                )}
+            <View style={[
+                styles.messageContainer,
+                isMyMessage ? styles.myMessage : styles.otherMessage
+            ]}>
                 <Text style={[
-                    styles.messageText,
-                    isMyMessage ? styles.myMessageText : styles.otherMessageText
+                    styles.senderName,
+                    { color: isMyMessage ? '#fff' : '#666' }
                 ]}>
-                    {message.text}
+                    {String(item.user?.name || 'Unknown')}
                 </Text>
-                <Text style={styles.timestamp}>
-                    {message.createdAt.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })}
+
+                {/* Render image if present */}
+                {item.image && (
+                    <Image
+                        source={{ uri: item.image }}
+                        style={styles.messageImage}
+                        resizeMode="cover"
+                    />
+                )}
+
+                {/* Render location if present */}
+                {item.location && (
+                    <MapView
+                        style={styles.messageMap}
+                        region={{
+                            latitude: item.location.latitude,
+                            longitude: item.location.longitude,
+                            latitudeDelta: 0.0922,
+                            longitudeDelta: 0.0421,
+                        }}
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                    >
+                        <Marker
+                            coordinate={{
+                                latitude: item.location.latitude,
+                                longitude: item.location.longitude,
+                            }}
+                        />
+                    </MapView>
+                )}
+
+                {/* Render text if present */}
+                {item.text && (
+                    <Text style={[
+                        styles.messageText,
+                        { color: isMyMessage ? '#fff' : '#000' }
+                    ]}>
+                        {String(item.text)}
+                    </Text>
+                )}
+
+                <Text style={[
+                    styles.messageTime,
+                    { color: isMyMessage ? '#fff' : '#666' }
+                ]}>
+                    {item.createdAt?.toLocaleTimeString ? item.createdAt.toLocaleTimeString() : String(item.createdAt)}
                 </Text>
             </View>
         );
-    }; return (
-        <View style={[styles.container, { backgroundColor: color }]}>
-            <View style={[styles.statusBar, isOnline ? styles.onlineBar : styles.offlineBar]}>
-                <Text style={styles.statusText}>
-                    {isOnline ? 'Firebase Connected - Real-time chat' : 'Offline Mode - Messages saved locally'}
-                </Text>
-            </View>
+    };
 
-            <ScrollView
-                style={styles.messagesContainer}
-                contentContainerStyle={styles.messagesContent}
-            >
-                {messages.map(renderMessage)}
-            </ScrollView>
-
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
-            >
-                <View style={styles.inputContainer}>
-                    <TextInput
-                        style={styles.textInput}
-                        value={newMessage}
-                        onChangeText={setNewMessage}
-                        placeholder="Type your message..."
-                        placeholderTextColor="#999"
-                        multiline
-                        maxLength={500}
-                    />
-                    <TouchableOpacity
-                        style={[
-                            styles.sendButton,
-                            !newMessage.trim() && styles.sendButtonDisabled
-                        ]}
-                        onPress={sendMessage}
-                        disabled={!newMessage.trim()}
-                    >
-                        <Text style={styles.sendButtonText}>Send</Text>
-                    </TouchableOpacity>
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <View style={[styles.container, { backgroundColor: color }]}>
+                {/* Status Bar */}
+                <View style={[
+                    styles.statusBar,
+                    isConnected && isOnline ? styles.onlineBar : styles.offlineBar
+                ]}>
+                    <Text style={styles.statusText}>
+                        {isConnected && isOnline
+                            ? 'Firebase Connected - Real-time chat'
+                            : isConnected === false
+                                ? 'Offline - Showing cached messages'
+                                : 'Local Mode - Messages saved locally'
+                        }
+                    </Text>
                 </View>
-            </KeyboardAvoidingView>
-        </View>
+
+                {/* Messages List */}
+                <FlatList
+                    style={[
+                        styles.messagesContainer,
+                        { marginBottom: keyboardHeight > 0 ? keyboardHeight + 60 : 60 }
+                    ]}
+                    data={messages}
+                    renderItem={renderMessage}
+                    keyExtractor={item => item._id.toString()}
+                    inverted={true}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 10 }}
+                />
+
+                {/* Input Area */}
+                {isConnected !== false && (
+                    <View style={[
+                        styles.inputContainer,
+                        {
+                            position: 'absolute',
+                            bottom: keyboardHeight > 0 ? keyboardHeight : 0,
+                            left: 0,
+                            right: 0,
+                        }
+                    ]}>
+                        <View style={styles.inputRow}>
+                            <CustomActions
+                                onSend={handleSend}
+                                storage={storage}
+                                userID={userID}
+                            />
+                            <TextInput
+                                style={styles.textInput}
+                                value={messageText}
+                                onChangeText={setMessageText}
+                                placeholder="Type your message..."
+                                multiline={true}
+                                maxLength={500}
+                                returnKeyType="send"
+                                blurOnSubmit={false}
+                                onSubmitEditing={sendMessage}
+                            />
+                            <TouchableOpacity
+                                style={[
+                                    styles.sendButton,
+                                    !messageText.trim() && styles.sendButtonDisabled
+                                ]}
+                                onPress={sendMessage}
+                                disabled={!messageText.trim()}
+                            >
+                                <Text style={styles.sendButtonText}>Send</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+            </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
     container: {
         flex: 1,
     },
@@ -219,71 +382,76 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 10,
     },
-    messagesContent: {
-        flexGrow: 1,
-        justifyContent: 'flex-end',
-    },
     messageContainer: {
+        backgroundColor: '#f0f0f0',
+        padding: 10,
+        borderRadius: 10,
         marginVertical: 5,
-        padding: 12,
-        borderRadius: 12,
         maxWidth: '80%',
     },
     myMessage: {
-        alignSelf: 'flex-end',
         backgroundColor: '#007AFF',
+        alignSelf: 'flex-end',
     },
     otherMessage: {
-        alignSelf: 'flex-start',
         backgroundColor: '#E5E5EA',
+        alignSelf: 'flex-start',
     },
     senderName: {
         fontSize: 12,
         fontWeight: 'bold',
-        marginBottom: 4,
+        marginBottom: 5,
         color: '#666',
     },
     messageText: {
         fontSize: 16,
-        lineHeight: 20,
+        color: '#000',
     },
-    myMessageText: {
-        color: 'white',
+    messageImage: {
+        width: 200,
+        height: 200,
+        borderRadius: 10,
+        marginVertical: 5,
     },
-    otherMessageText: {
-        color: 'black',
+    messageMap: {
+        width: 200,
+        height: 200,
+        borderRadius: 10,
+        marginVertical: 5,
     },
-    timestamp: {
+    messageTime: {
         fontSize: 10,
-        marginTop: 4,
-        opacity: 0.7,
+        color: '#666',
+        marginTop: 5,
+        textAlign: 'right',
     },
     inputContainer: {
+        borderTopWidth: 1,
+        borderTopColor: '#ccc',
+        backgroundColor: '#fff',
+        paddingBottom: Platform.OS === 'ios' ? 0 : 10,
+    },
+    inputRow: {
         flexDirection: 'row',
         padding: 10,
-        backgroundColor: 'white',
         alignItems: 'flex-end',
-        borderTopWidth: 1,
-        borderTopColor: '#ddd',
     },
     textInput: {
         flex: 1,
         borderWidth: 1,
-        borderColor: '#ddd',
+        borderColor: '#ccc',
         borderRadius: 20,
         paddingHorizontal: 15,
         paddingVertical: 10,
         marginRight: 10,
         maxHeight: 100,
         fontSize: 16,
-        backgroundColor: '#f9f9f9',
     },
     sendButton: {
         backgroundColor: '#007AFF',
-        paddingHorizontal: 20,
-        paddingVertical: 12,
         borderRadius: 20,
-        justifyContent: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
     },
     sendButtonDisabled: {
         backgroundColor: '#ccc',
@@ -291,7 +459,6 @@ const styles = StyleSheet.create({
     sendButtonText: {
         color: 'white',
         fontWeight: 'bold',
-        fontSize: 16,
     },
 });
 
