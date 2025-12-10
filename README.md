@@ -4,14 +4,16 @@ A feature-rich real-time chat application built with React Native, Expo, and Fir
 
 ## 🚀 Features
 
-- **Real-time Messaging**: Instant chat with Firebase Firestore
-- **Image Sharing**: Camera capture and photo library integration
-- **Location Sharing**: GPS coordinates with interactive maps
-- **Offline Support**: Local message caching with AsyncStorage
-- **Network Monitoring**: Automatic connection status detection
-- **Custom UI**: Beautiful, responsive chat interface
-- **Cross-Platform**: iOS, Android, and Web support
-- **Accessibility**: Screen reader support and accessibility features
+- **Real-time Messaging**: Instant chat with Firebase Firestore integration
+- **Image Sharing**: Camera capture and photo library with Firebase Storage upload
+- **Location Sharing**: GPS coordinates with interactive MapView display
+- **Offline Support**: Local message caching with AsyncStorage for offline functionality
+- **Network Monitoring**: Automatic connection status detection and Firebase network management
+- **Custom Chat UI**: Built from scratch with FlatList, custom message bubbles, and responsive design
+- **Blob Conversion**: Proper image-to-blob conversion for Firebase Storage uploads
+- **Cross-Platform**: iOS, Android, and Web support through Expo
+- **Accessibility**: Screen reader support and comprehensive accessibility features
+- **Action Sheet Integration**: Native action sheets for media and location sharing options
 
 ## 📋 Prerequisites
 
@@ -118,24 +120,28 @@ npx expo start --port 8085
 ### 2. Communication Features Testing
 
 #### Text Messaging
-1. Type a message in the text input
-2. Press "Send" or hit Enter
-3. Verify message appears in chat bubble
-4. Check real-time sync across multiple devices
+1. Type a message in the text input field
+2. Press "Send" button or hit Enter key
+3. Verify message appears in custom chat bubble with proper styling
+4. Check real-time sync across multiple devices connected to same Firebase project
 
 #### Image Sharing
-1. Tap the "+" button next to text input
-2. Select "Choose From Library" or "Take Photo"
-3. Grant camera/photo permissions when prompted
-4. Select or capture an image
-5. Verify image uploads and displays in chat
+1. Tap the blue "+" button next to text input
+2. Select "Choose From Library" or "Take Photo" from action sheet
+3. Grant camera/photo permissions when prompted by the system
+4. Select image from library or capture new photo with camera
+5. Wait for image upload to Firebase Storage (blob conversion happens automatically)
+6. Verify image displays properly in chat bubble with 200x200 dimensions
+7. Test that image URLs are accessible and persistent
 
 #### Location Sharing
-1. Tap the "+" button next to text input
-2. Select "Share Location"
-3. Grant location permissions when prompted
-4. Verify map appears with your location marker
-5. Check that coordinates are accurate
+1. Tap the blue "+" button next to text input
+2. Select "Share Location" from action sheet menu
+3. Grant location permissions when prompted by the system
+4. Wait for GPS coordinates to be retrieved
+5. Verify interactive MapView appears in chat bubble showing your location
+6. Check that map displays correct coordinates with marker pin
+7. Test that location data persists in Firebase Firestore
 
 #### Offline Testing
 1. Turn off internet connection
@@ -169,7 +175,7 @@ npx expo start --port 8086
 ```
 
 #### TypeScript Configuration Warnings
-The `expo-location/tsconfig.json` warning is cosmetic and doesn't affect functionality. The app works normally despite this warning.
+The `expo-location/tsconfig.json` warning is cosmetic and doesn't affect functionality. This is a known issue where the package references `tsconfig.base` instead of `tsconfig.base.json`. The app works perfectly despite this warning.
 
 #### Firebase Connection Issues
 1. Check internet connection
@@ -192,18 +198,20 @@ The `expo-location/tsconfig.json` warning is cosmetic and doesn't affect functio
 ```
 chat-app/
 ├── components/
-│   ├── Start.js              # Welcome screen with user setup
-│   ├── Chat_firebase.js      # Main chat interface
-│   ├── CustomActions.js      # Image/location sharing component
+│   ├── Start_firebase.js     # Welcome screen with Firebase authentication
+│   ├── Chat_firebase.js      # Main chat interface with custom UI
+│   ├── CustomActions.js      # Action sheet for image/location sharing
+│   ├── Chat_simple.js        # Simple chat implementation (backup)
 │   └── Welcome.js            # Additional welcome screen
 ├── assets/
-│   └── images/               # App icons and images
-├── firebase_web.js           # Firebase configuration
-├── App.js                    # Main navigation container
+│   ├── images/               # App icons and background images
+│   └── background.jpg        # Start screen background
+├── firebase_web.js           # Firebase configuration and initialization
+├── App.js                    # Main navigation with ActionSheetProvider
 ├── index.js                  # Entry point
 ├── app.json                  # Expo configuration
 ├── package.json              # Dependencies and scripts
-└── README.md                 # This file
+└── README.md                 # This documentation
 ```
 
 ## 🔧 Key Dependencies
@@ -214,14 +222,14 @@ chat-app/
   "react": "19.1.0",
   "react-native": "0.81.5",
   "firebase": "9.23.0",
-  "@react-navigation/native": "^7.1.21",
-  "@react-navigation/native-stack": "^7.8.0",
-  "@react-native-async-storage/async-storage": "1.24.0",
-  "@react-native-community/netinfo": "11.4.1",
-  "expo-image-picker": "~16.0.6",
-  "expo-location": "~18.0.4",
-  "react-native-maps": "1.18.0",
-  "@expo/react-native-action-sheet": "~4.1.0"
+  "@react-navigation/native": "^7.1.24",
+  "@react-navigation/native-stack": "^7.8.5",
+  "@react-native-async-storage/async-storage": "2.2.0",
+  "@react-native-community/netinfo": "^11.4.1",
+  "expo-image-picker": "~17.0.9",
+  "expo-location": "~19.0.8",
+  "react-native-maps": "1.20.1",
+  "@expo/react-native-action-sheet": "^4.1.1"
 }
 ```
 
@@ -272,9 +280,13 @@ If you encounter issues:
 ## 🏆 Acknowledgments
 
 - Built with [Expo](https://expo.dev/) and [React Native](https://reactnative.dev/)
-- Real-time features powered by [Firebase](https://firebase.google.com/)
-- Maps integration via [React Native Maps](https://github.com/react-native-maps/react-native-maps)
-- Image handling with [Expo Image Picker](https://docs.expo.dev/versions/latest/sdk/imagepicker/)
+- Real-time messaging powered by [Firebase Firestore](https://firebase.google.com/docs/firestore)
+- Image storage via [Firebase Storage](https://firebase.google.com/docs/storage)
+- Maps integration with [React Native Maps](https://github.com/react-native-maps/react-native-maps)
+- Image handling through [Expo Image Picker](https://docs.expo.dev/versions/latest/sdk/imagepicker/)
+- Location services with [Expo Location](https://docs.expo.dev/versions/latest/sdk/location/)
+- Action sheets via [Expo React Native Action Sheet](https://github.com/expo/react-native-action-sheet)
+- Network monitoring with [React Native NetInfo](https://github.com/react-native-netinfo/react-native-netinfo)
 
 ---
 

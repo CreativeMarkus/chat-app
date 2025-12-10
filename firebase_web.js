@@ -1,8 +1,9 @@
-// Firebase configuration that works with Expo Go
+// Firebase configuration and initialization for chat app
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
+// Firebase project configuration
 const firebaseConfig = {
     apiKey: "AIzaSyDSx7cxIe4Ab3gWexOyRtz_b8ROwDDaHgg",
     authDomain: "chatapp-34f0e.firebaseapp.com",
@@ -12,7 +13,7 @@ const firebaseConfig = {
     appId: "1:291405061906:web:b22e8553d5d8cf96b21dcb"
 };
 
-// Initialize Firebase app once
+// Initialize Firebase app (prevent multiple initializations)
 let app;
 if (getApps().length === 0) {
     app = initializeApp(firebaseConfig);
@@ -20,10 +21,10 @@ if (getApps().length === 0) {
     app = getApps()[0];
 }
 
-// Initialize Firestore
+// Initialize Firestore database for real-time messaging
 const db = getFirestore(app);
 
-// Initialize Firebase Storage
+// Initialize Firebase Storage for image uploads
 const storage = getStorage(app);
 
 // For Expo Go compatibility, we'll handle auth differently

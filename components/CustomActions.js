@@ -1,3 +1,4 @@
+// CustomActions component for handling image and location sharing in chat
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
 import { useActionSheet } from '@expo/react-native-action-sheet';
@@ -5,9 +6,11 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
+// Component for action button that allows users to share images and location
 const CustomActions = ({ wrapperStyle, iconTextStyle, onSend, storage, userID }) => {
     const { showActionSheetWithOptions } = useActionSheet();
 
+    // Show action sheet with options for image/location sharing
     const onActionPress = () => {
         const options = ['Choose From Library', 'Take Photo', 'Share Location', 'Cancel'];
         const cancelButtonIndex = 3;
@@ -35,25 +38,26 @@ const CustomActions = ({ wrapperStyle, iconTextStyle, onSend, storage, userID })
         );
     };
 
+    // Upload image to Firebase Storage and send message with image URL
     const uploadAndSendImage = async (imageURI) => {
         try {
-            // Convert URI to blob
+            // Convert image URI to blob for Firebase upload
             const response = await fetch(imageURI);
             const blob = await response.blob();
 
-            // Generate unique reference using userID + timestamp + filename
+            // Create unique filename to prevent conflicts
             const filename = imageURI.split('/').pop() || 'image.jpg';
             const timestamp = Date.now();
             const uniqueRef = `${userID}_${timestamp}_${filename}`;
             const imageRef = ref(storage, `images/${uniqueRef}`);
 
-            // Upload blob to Firebase Storage
+            // Upload image blob to Firebase Storage
             await uploadBytes(imageRef, blob);
 
-            // Get download URL
+            // Get public download URL for the uploaded image
             const downloadURL = await getDownloadURL(imageRef);
 
-            // Call onSend with image URL
+            // Send message containing the image URL
             onSend({
                 _id: Math.random().toString(),
                 text: '',
@@ -70,14 +74,15 @@ const CustomActions = ({ wrapperStyle, iconTextStyle, onSend, storage, userID })
         }
     };
 
+    // Allow user to select image from device library
     const pickImage = async () => {
-        // Request media library permission
+        // Request permission to access photo library
         let permissions = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (permissions?.granted) {
-            // Launch image library async
+            // Open image picker
             let result = await ImagePicker.launchImageLibraryAsync();
             if (!result.canceled) {
-                // If not canceled, call uploadAndSendImage with URI
+                // Upload and send selected image
                 await uploadAndSendImage(result.assets[0].uri);
             }
         } else {
@@ -85,14 +90,15 @@ const CustomActions = ({ wrapperStyle, iconTextStyle, onSend, storage, userID })
         }
     };
 
+    // Allow user to take photo with device camera
     const takePhoto = async () => {
-        // Request camera permissions async
+        // Request camera permission
         let permissions = await ImagePicker.requestCameraPermissionsAsync();
         if (permissions?.granted) {
-            // Launch camera async
+            // Open camera
             let result = await ImagePicker.launchCameraAsync();
             if (!result.canceled) {
-                // If not canceled, call uploadAndSendImage with URI
+                // Upload and send captured photo
                 await uploadAndSendImage(result.assets[0].uri);
             }
         } else {
@@ -100,16 +106,17 @@ const CustomActions = ({ wrapperStyle, iconTextStyle, onSend, storage, userID })
         }
     };
 
+    // Get user's current location and send as message
     const getLocation = async () => {
         // Request location permission
         let permissions = await Location.requestForegroundPermissionsAsync();
         if (permissions?.granted) {
-            // Retrieve coordinates with getCurrentPositionAsync
+            // Get current GPS coordinates
             try {
                 let location = await Location.getCurrentPositionAsync({});
                 const { latitude, longitude } = location.coords;
 
-                // Call onSend with location data
+                // Send message with location coordinates
                 onSend({
                     _id: Math.random().toString(),
                     text: '',

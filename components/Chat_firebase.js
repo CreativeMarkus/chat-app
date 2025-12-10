@@ -1,3 +1,4 @@
+// Main chat screen with Firebase integration, image sharing, and location sharing
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, SafeAreaView, Keyboard, Dimensions, Image } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
@@ -6,6 +7,7 @@ import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firesto
 import { db, storage } from '../firebase_web';
 import CustomActions from './CustomActions';
 
+// Chat component with real-time messaging and media sharing
 const Chat = ({ route, navigation, isConnected }) => {
     const { userID, name, color, firebaseEnabled = false } = route.params;
     const [messages, setMessages] = useState([]);
@@ -37,11 +39,13 @@ const Chat = ({ route, navigation, isConnected }) => {
         };
     }, [name, isConnected]);
 
+    // Set up real-time listener for Firebase messages
     const setupFirebaseListener = () => {
         try {
             console.log('Setting up Firebase Firestore listener...');
             const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
 
+            // Listen for real-time message updates
             const unsubscribe = onSnapshot(q,
                 async (snapshot) => {
                     console.log('Received', snapshot.docs.length, 'messages from Firestore');
@@ -168,10 +172,12 @@ const Chat = ({ route, navigation, isConnected }) => {
         setMessageText('');
     };
 
+    // Handle sending messages (text, images, or location)
     const handleSend = async (message) => {
-        // Add message to local state immediately
+        // Show message immediately in UI
         setMessages(previousMessages => [message, ...previousMessages]);
 
+        // Send to Firebase if connected
         if (firebaseEnabled && db && isConnected && isOnline) {
             try {
                 const firebaseMessage = {

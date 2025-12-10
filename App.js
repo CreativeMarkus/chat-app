@@ -1,4 +1,4 @@
-// Chat App - Firebase Enabled Version with Network Monitoring
+// Main App component with Firebase integration and network monitoring
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -7,18 +7,18 @@ import { useNetInfo } from '@react-native-community/netinfo';
 import { disableNetwork, enableNetwork } from 'firebase/firestore';
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 
-// Import Firebase-enabled components and database
+// Import screen components and Firebase config
 import Start from './components/Start_firebase';
 import Chat from './components/Chat_firebase';
 import { db } from './firebase_web';
 
-// Create the navigator
+// Navigation stack setup
 const Stack = createNativeStackNavigator();
 
 const App = () => {
   console.log("App starting - Firebase enabled version with network monitoring...");
 
-  // Monitor network connectivity
+  // Monitor internet connection status
   const netInfo = useNetInfo();
 
   useEffect(() => {
